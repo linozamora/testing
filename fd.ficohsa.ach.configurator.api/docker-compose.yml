@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  ficohsa.webapi:
+    image: ${DOCKER_REGISTRY-}ficohsa
+    build:
+      context: .
+      dockerfile: Ficohsa.WebAPI/Dockerfile

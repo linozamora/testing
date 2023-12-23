@@ -1,0 +1,261 @@
+definitions:
+  caches:
+    nextjs: fd.ficohsa.ach.configurator.ui/.next
+    node-configurator: fd.ficohsa.ach.configurator.ui/node_modules
+  services:
+    docker:
+      memory: 3072
+      image:
+        name: registry-ach-dev2.gfficohsa.hn/ach/ach-deploy:v1.2
+        username: $DOCKER_REGISTRY_USER
+        password: $DOCKER_REGISTRY_PASSWORD
+      variables:
+        DOCKER_OPTS: "--insecure-registry=registry-ach-dev2.gfficohsa.hn --insecure-registry=registry-ach-uat2.gfficohsa.hn --insecure-registry=registry-ach.gfficohsa.hn"
+pipelines:
+  pull-requests:
+    feature/*: #any branch with a feature prefix
+      - step:
+          name: "Build and test api"
+          image: registry-ach-dev2.gfficohsa.hn/ach/ach-build:v1.2
+          caches:
+            - "dotnetcore"
+          runs-on:
+            - "self.hosted"
+            - "tanzu.ach.dev"
+          script:
+            - cd fd.ficohsa.ach.configurator.api
+            - dotnet restore "Ficohsa.WebAPI/Ficohsa.WebAPI.csproj"
+            - dotnet build "Ficohsa.WebAPI/Ficohsa.WebAPI.csproj"
+            - dotnet test "Ficohsa.WebAPI/Ficohsa.WebAPI.csproj"
+  branches:
+    master:
+      - parallel:
+          - step:
+              name: "Build and test api"
+              image: registry-ach-dev2.gfficohsa.hn/ach/ach-build:v1.2
+              runs-on:
+                - "self.hosted"
+                - "tanzu.ach.dev"
+              caches:
+                - dotnetcore
+              script:
+                - cd fd.ficohsa.ach.configurator.api
+                - dotnet restore "Ficohsa.WebAPI/Ficohsa.WebAPI.csproj"
+                - dotnet build "Ficohsa.WebAPI/Ficohsa.WebAPI.csproj"
+                - dotnet test "Ficohsa.WebAPI/Ficohsa.WebAPI.csproj"
+          - step:
+              name: "Build and test ui"
+              image: node:18-alpine
+              size: 2x
+              runs-on:
+                - "self.hosted"
+                - "tanzu.ach.dev"
+              caches:
+                - node-configurator
+                - nextjs
+              script:
+                - cd fd.ficohsa.ach.configurator.ui
+                - yarn install --frozen-lockfile
+                - yarn run build
+      - stage:
+          name: Deploy to dev
+          deployment: Tanzu_DEV
+          steps:
+            - step:
+                name: "Build and push api"
+                image: registry-ach-dev2.gfficohsa.hn/ach/ach-deploy:v1.2
+                size: 2x
+                runs-on:
+                  - "self.hosted"
+                  - "tanzu.ach.dev"
+                script:
+                  - export DOCKER_BUILDKIT=1
+                  - echo "$DOCKER_REGISTRY_IP $DOCKER_REGISTRY_HOST" >> /etc/hosts
+                  - cd fd.ficohsa.ach.configurator.api
+                  - docker build . -f Ficohsa.WebAPI/Dockerfile --cache-from $DOCKER_REGISTRY_HOST/ach/configurator-api:latest -t ach-configurator-api:$BITBUCKET_BUILD_NUMBER -t ach-configurator-api:latest
+                  - cd ..
+                  - docker tag ach-configurator-api:$BITBUCKET_BUILD_NUMBER $DOCKER_REGISTRY_HOST/ach/configurator-api:$BITBUCKET_BUILD_NUMBER
+                  - docker tag ach-configurator-api:$BITBUCKET_BUILD_NUMBER $DOCKER_REGISTRY_HOST/ach/configurator-api:latest
+                  - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY_HOST
+                  - docker push $DOCKER_REGISTRY_HOST/ach/configurator-api:$BITBUCKET_BUILD_NUMBER
+                  - docker push $DOCKER_REGISTRY_HOST/ach/configurator-api:latest
+                services:
+                  - docker
+            - step:
+                name: "Docker build and push UI"
+                image: registry-ach-dev2.gfficohsa.hn/ach/ach-deploy:v1.2
+                size: 2x
+                runs-on:
+                  - "self.hosted"
+                  - "tanzu.ach.dev"
+                script:
+                  - export DOCKER_BUILDKIT=1
+                  - echo "$DOCKER_REGISTRY_IP $DOCKER_REGISTRY_HOST" >> /etc/hosts
+                  - cd fd.ficohsa.ach.configurator.ui
+                  - docker build . -f Dockerfile --cache-from $DOCKER_REGISTRY_HOST/ach/configurator-ui:latest -t ach-configurator-ui:$BITBUCKET_BUILD_NUMBER
+                  - cd ..
+                  - docker tag ach-configurator-ui:$BITBUCKET_BUILD_NUMBER $DOCKER_REGISTRY_HOST/ach/configurator-ui:$BITBUCKET_BUILD_NUMBER
+                  - docker tag ach-configurator-ui:$BITBUCKET_BUILD_NUMBER $DOCKER_REGISTRY_HOST/ach/configurator-ui:latest
+                  - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY_HOST
+                  - docker push $DOCKER_REGISTRY_HOST/ach/configurator-ui:$BITBUCKET_BUILD_NUMBER
+                  - docker push $DOCKER_REGISTRY_HOST/ach/configurator-ui:latest
+                services:
+                  - docker
+            - step:
+                name: "Deploy helm chart"
+                image: registry-ach-dev2.gfficohsa.hn/ach/ach-deploy:v1.2
+                size: 1x
+                runs-on:
+                  - "self.hosted"
+                  - "tanzu.ach.dev"
+                script:
+                  - export KUBECONFIG=/kube-config
+                  - echo $KUBE_CONFIG_B64 | base64 -d > /kube-config
+                  - helm upgrade --install -f dev.values.yml --set ui.image.repository=$DOCKER_REGISTRY_HOST/ach/configurator-ui --set ui.image.tag=$BITBUCKET_BUILD_NUMBER --set api.image.repository=$DOCKER_REGISTRY_HOST/ach/configurator-api --set api.image.tag=$BITBUCKET_BUILD_NUMBER ach-configurator --namespace ach ./chart
+    release/*:
+      - parallel:
+          - step:
+              name: "Build and test"
+              image: rgbn1dsrgitlab.ach/ach/ach-build:v1.2
+              runs-on:
+                - "ach"
+                - "self.hosted"
+              caches:
+                - dotnetcore
+              script:
+                - cd fd.ficohsa.ach.configurator.api
+                - dotnet restore "Ficohsa.WebAPI/Ficohsa.WebAPI.csproj"
+                - dotnet build "Ficohsa.WebAPI/Ficohsa.WebAPI.csproj"
+                - dotnet test "Ficohsa.WebAPI/Ficohsa.WebAPI.csproj"
+          - step:
+              name: "Build and test"
+              image: node:18-alpine
+              size: 2x
+              runs-on:
+                - "ach"
+                - "self.hosted"
+              caches:
+                - node-configurator
+                - nextjs
+              script:
+                - cd fd.ficohsa.ach.configurator.ui
+                - yarn install --frozen-lockfile
+                - yarn run build
+      - stage:
+          name: Deploy to UAT
+          deployment: UAT
+          trigger: manual
+          steps:
+            - step:
+                name: "Build and push api"
+                image: rgbn1dsrgitlab.ach/ach/ach-deploy:v1.2
+                size: 2x
+                runs-on:
+                  - "ach"
+                  - "ach.uat"
+                  - "self.hosted"
+                script:
+                  - export DOCKER_BUILDKIT=1
+                  - echo "$DOCKER_REGISTRY_IP $DOCKER_REGISTRY_HOST" >> /etc/hosts
+                  - cd fd.ficohsa.ach.configurator.api
+                  - docker build . -f Ficohsa.WebAPI/Dockerfile --cache-from $DOCKER_REGISTRY_HOST/ach/configurator-api:latest -t ach-configurator-api:$BITBUCKET_BUILD_NUMBER -t ach-configurator-api:latest
+                  - cd ..
+                  - docker tag ach-configurator-api:$BITBUCKET_BUILD_NUMBER $DOCKER_REGISTRY_HOST/ach/configurator-api:$BITBUCKET_BUILD_NUMBER
+                  - docker tag ach-configurator-api:$BITBUCKET_BUILD_NUMBER $DOCKER_REGISTRY_HOST/ach/configurator-api:latest
+                  - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY_HOST
+                  - docker push $DOCKER_REGISTRY_HOST/ach/configurator-api:$BITBUCKET_BUILD_NUMBER
+                  - docker push $DOCKER_REGISTRY_HOST/ach/configurator-api:latest
+                services:
+                  - docker
+            - step:
+                name: "Docker build and push UI"
+                image: rgbn1dsrgitlab.ach/ach/ach-deploy:v1.2
+                size: 2x
+                runs-on:
+                  - "ach"
+                  - "ach.uat"
+                  - "self.hosted"
+                script:
+                  - export DOCKER_BUILDKIT=1
+                  - echo "$DOCKER_REGISTRY_IP $DOCKER_REGISTRY_HOST" >> /etc/hosts
+                  - cd fd.ficohsa.ach.configurator.ui
+                  - docker build . -f Dockerfile --cache-from $DOCKER_REGISTRY_HOST/ach/configurator-ui:latest -t ach-configurator-ui:$BITBUCKET_BUILD_NUMBER
+                  - cd ..
+                  - docker tag ach-configurator-ui:$BITBUCKET_BUILD_NUMBER $DOCKER_REGISTRY_HOST/ach/configurator-ui:$BITBUCKET_BUILD_NUMBER
+                  - docker tag ach-configurator-ui:$BITBUCKET_BUILD_NUMBER $DOCKER_REGISTRY_HOST/ach/configurator-ui:latest
+                  - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY_HOST
+                  - docker push $DOCKER_REGISTRY_HOST/ach/configurator-ui:$BITBUCKET_BUILD_NUMBER
+                  - docker push $DOCKER_REGISTRY_HOST/ach/configurator-ui:latest
+                services:
+                  - docker
+            - step:
+                name: "Deploy helm chart"
+                image: rgbn1dsrgitlab.ach/ach/ach-deploy:v1.2
+                size: 1x
+                runs-on:
+                  - "ach"
+                  - "ach.uat"
+                  - "self.hosted"
+                script:
+                  - export KUBECONFIG=/kube-config
+                  - echo $KUBE_CONFIG_B64 | base64 -d > /kube-config
+                  - helm upgrade --install -f uat.values.yml --set ui.image.repository=$DOCKER_REGISTRY_HOST/ach/configurator-ui --set ui.image.tag=$BITBUCKET_BUILD_NUMBER --set api.image.repository=$DOCKER_REGISTRY_HOST/ach/configurator-api --set api.image.tag=$BITBUCKET_BUILD_NUMBER ach-configurator --namespace ach ./chart
+      - stage:
+          name: Deploy to PRODUCTION
+          deployment: Production
+          trigger: manual
+          steps:
+            - step:
+                name: "Build and push api"
+                image: rgbn1dsrgitlab.ach/ach/ach-deploy:v1.2
+                size: 2x
+                runs-on:
+                  - "ach"
+                  - "ach.prod"
+                  - "self.hosted"
+                script:
+                  - export DOCKER_BUILDKIT=1
+                  - echo "$DOCKER_REGISTRY_IP $DOCKER_REGISTRY_HOST" >> /etc/hosts
+                  - cd fd.ficohsa.ach.configurator.api
+                  - docker build . -f Ficohsa.WebAPI/Dockerfile --cache-from $DOCKER_REGISTRY_HOST/ach/configurator-api:latest -t ach-configurator-api:$BITBUCKET_BUILD_NUMBER -t ach-configurator-api:latest
+                  - cd ..
+                  - docker tag ach-configurator-api:$BITBUCKET_BUILD_NUMBER $DOCKER_REGISTRY_HOST/ach/configurator-api:$BITBUCKET_BUILD_NUMBER
+                  - docker tag ach-configurator-api:$BITBUCKET_BUILD_NUMBER $DOCKER_REGISTRY_HOST/ach/configurator-api:latest
+                  - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY_HOST
+                  - docker push $DOCKER_REGISTRY_HOST/ach/configurator-api:$BITBUCKET_BUILD_NUMBER
+                  - docker push $DOCKER_REGISTRY_HOST/ach/configurator-api:latest
+                services:
+                  - docker
+            - step:
+                name: "Docker build and push UI"
+                image: rgbn1dsrgitlab.ach/ach/ach-deploy:v1.2
+                size: 2x
+                runs-on:
+                  - "ach"
+                  - "ach.prod"
+                  - "self.hosted"
+                script:
+                  - export DOCKER_BUILDKIT=1
+                  - echo "$DOCKER_REGISTRY_IP $DOCKER_REGISTRY_HOST" >> /etc/hosts
+                  - cd fd.ficohsa.ach.configurator.ui
+                  - docker build . -f Dockerfile --cache-from $DOCKER_REGISTRY_HOST/ach/configurator-ui:latest -t ach-configurator-ui:$BITBUCKET_BUILD_NUMBER
+                  - cd ..
+                  - docker tag ach-configurator-ui:$BITBUCKET_BUILD_NUMBER $DOCKER_REGISTRY_HOST/ach/configurator-ui:$BITBUCKET_BUILD_NUMBER
+                  - docker tag ach-configurator-ui:$BITBUCKET_BUILD_NUMBER $DOCKER_REGISTRY_HOST/ach/configurator-ui:latest
+                  - docker login -u $DOCKER_REGISTRY_USER -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY_HOST
+                  - docker push $DOCKER_REGISTRY_HOST/ach/configurator-ui:$BITBUCKET_BUILD_NUMBER
+                  - docker push $DOCKER_REGISTRY_HOST/ach/configurator-ui:latest
+                services:
+                  - docker
+            - step:
+                name: "Deploy helm chart"
+                image: rgbn1dsrgitlab.ach/ach/ach-deploy:v1.2
+                size: 1x
+                runs-on:
+                  - "ach"
+                  - "ach.prod"
+                  - "self.hosted"
+                script:
+                  - export KUBECONFIG=/kube-config
+                  - echo $KUBE_CONFIG_B64 | base64 -d > /kube-config
+                  - helm upgrade --install -f prod.values.yml --set ui.image.repository=$DOCKER_REGISTRY_HOST/ach/configurator-ui --set ui.image.tag=$BITBUCKET_BUILD_NUMBER --set api.image.repository=$DOCKER_REGISTRY_HOST/ach/configurator-api --set api.image.tag=$BITBUCKET_BUILD_NUMBER ach-configurator --namespace ach ./chart

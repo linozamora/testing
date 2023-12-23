@@ -1,0 +1,33 @@
+api:
+  environment: Development
+
+otel:
+  exporter:
+    endpoint: "http://opentelemetry-collector.telemetryv2.svc.cluster.local:4317"
+
+ingress:
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: configurator-ach.gfficohsa.hn
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - configurator-ach.gfficohsa.hn
+      secretName: ach-configurator
+
+nextauth_url: https://configurator-ach.gfficohsa.hn
+hostname: configurator-ach.gfficohsa.hn
+ingress_ip: "10.242.25.95"
+coreBankingUrl: "http://172.23.13.19:8003/Middleware/OperationsAndExecution/CustomerDeposits/OperacionesACH"
+ach_saliente_url: "https://saliente-ach.gfficohsa.hn/"
+
+# the empty first line is required
+idpPublicCert: |
+
+idpDiscoveryPath: ""
+
+# the empty first line is required
+jackson_metadata_xml: |

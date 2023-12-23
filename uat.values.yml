@@ -1,0 +1,99 @@
+api:
+  environment: Development
+
+otel:
+  exporter:
+    endpoint: "http://opentelemetry-collector.telemetryv2.svc.cluster.local:4317"
+
+ingress:
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  hosts:
+    - host: configurator-ach-uat.gfficohsa.hn
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - hosts:
+        - configurator-ach-uat.gfficohsa.hn
+      secretName: ach-configurator
+
+nextauth_url: https://configurator-ach-uat.gfficohsa.hn
+hostname: configurator-ach-uat.gfficohsa.hn
+ingress_ip: "10.242.25.85"
+coreBankingUrl:  "http://172.23.13.35:8003/Middleware/OperationsAndExecution/CustomerDeposits/OperacionesACH"
+ach_saliente_url: "https://saliente-ach-uat.gfficohsa.hn/"
+
+# the empty first line is required
+idpPublicCert: |
+
+  MIIESjCCAzKgAwIBAgIUCa9x/bcWbGeYZX53H5qqvMqF43QwDQYJKoZIhvcNAQEL
+  BQAwaTELMAkGA1UEBhMCSE4xITAfBgNVBAoMGEJhbmNvIEZpbmFuY2llcm8gRmlj
+  b2hzYTEVMBMGA1UECwwMT25lTG9naW4gSWRQMSAwHgYDVQQDDBdPbmVMb2dpbiBB
+  Y2NvdW50IDEwNjI4NjAeFw0yMjAyMjIyMTQ0MDlaFw0yNzAyMjIyMTQ0MDlaMGkx
+  CzAJBgNVBAYTAkhOMSEwHwYDVQQKDBhCYW5jbyBGaW5hbmNpZXJvIEZpY29oc2Ex
+  FTATBgNVBAsMDE9uZUxvZ2luIElkUDEgMB4GA1UEAwwXT25lTG9naW4gQWNjb3Vu
+  dCAxMDYyODYwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDWfPbrjQFM
+  iNTczbR4Gh3nXTRDHUqZNESCMMPHz0Eo5cnKydqHv4IWRfP8SAJBGhELxARu0NLB
+  mWCTdUbi9NYY7zJQXLQmexioobIpf2BT+Ce/gUdMxVzKUwvrI8BptvLQx1101KcU
+  IaUzrsPgQmgzHnO4wd3TKw7Uh2i8d/leXbMGHY2CxrLVyOFhsA8TtBJ2BlUGFIOx
+  0jMx9f4K8LZaMkk1rX/bs4f/BJh2QUHWDFjRn/RF9rgblkWtBnKqiF+2QSgrrTQt
+  49ZqbiEysUDAGE0+eoCCBi1WcO9bol99JmnstMw8MKhb1qtI4dmq8f1xqTb4CRi9
+  dA9g+VYkjFIfAgMBAAGjgekwgeYwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUlTQb
+  yzd3Dze9BoySCroL6VH0pQ0wgaYGA1UdIwSBnjCBm4AUlTQbyzd3Dze9BoySCroL
+  6VH0pQ2hbaRrMGkxCzAJBgNVBAYTAkhOMSEwHwYDVQQKDBhCYW5jbyBGaW5hbmNp
+  ZXJvIEZpY29oc2ExFTATBgNVBAsMDE9uZUxvZ2luIElkUDEgMB4GA1UEAwwXT25l
+  TG9naW4gQWNjb3VudCAxMDYyODaCFAmvcf23FmxnmGV+dx+aqrzKheN0MA4GA1Ud
+  DwEB/wQEAwIHgDANBgkqhkiG9w0BAQsFAAOCAQEAzswVG62eNGplW6DiOkd7TwVQ
+  iGK52grDrivegqlalXMHKeSOJde4oLySl/90gdMBISvB+U2U7+dspZNCdfm9F6kS
+  6NLm/fzIUBE6no4v6sPJOcAb1c7kWONBrlkgzBqAtVy6jX54vpNeeOUPMUKwM6VJ
+  veXy0BFq5sgkkKYID79C3kQ/ni3RTKCbaVLkF1gXJL+XnPnlQHE0KsSqKXaidyGY
+  PjUQPegUABYZ6GIW5m78DDk47XDTARSej2JwX4S2fnu8LSo85VQk+O7eJQHCFYzk
+  UFpMjmQCdRukX14P1Xh9s1t0Em20HZZMheJJi7X5ic7GIHBloEjsCS72odod8A==
+
+idpDiscoveryPath: "https://ficohsa.onelogin.com/trust/saml2/http-post/sso/63fa79be-43ad-4334-994c-d2aba3cd3f3c"
+
+# the empty first line is required
+jackson_metadata_xml: |
+
+  <?xml version="1.0"?>
+  <EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://app.onelogin.com/saml/metadata/63fa79be-43ad-4334-994c-d2aba3cd3f3c">
+    <IDPSSODescriptor xmlns:ds="http://www.w3.org/2000/09/xmldsig#" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+      <KeyDescriptor use="signing">
+        <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+          <ds:X509Data>
+            <ds:X509Certificate>MIIESjCCAzKgAwIBAgIUCa9x/bcWbGeYZX53H5qqvMqF43QwDQYJKoZIhvcNAQEL
+  BQAwaTELMAkGA1UEBhMCSE4xITAfBgNVBAoMGEJhbmNvIEZpbmFuY2llcm8gRmlj
+  b2hzYTEVMBMGA1UECwwMT25lTG9naW4gSWRQMSAwHgYDVQQDDBdPbmVMb2dpbiBB
+  Y2NvdW50IDEwNjI4NjAeFw0yMjAyMjIyMTQ0MDlaFw0yNzAyMjIyMTQ0MDlaMGkx
+  CzAJBgNVBAYTAkhOMSEwHwYDVQQKDBhCYW5jbyBGaW5hbmNpZXJvIEZpY29oc2Ex
+  FTATBgNVBAsMDE9uZUxvZ2luIElkUDEgMB4GA1UEAwwXT25lTG9naW4gQWNjb3Vu
+  dCAxMDYyODYwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDWfPbrjQFM
+  iNTczbR4Gh3nXTRDHUqZNESCMMPHz0Eo5cnKydqHv4IWRfP8SAJBGhELxARu0NLB
+  mWCTdUbi9NYY7zJQXLQmexioobIpf2BT+Ce/gUdMxVzKUwvrI8BptvLQx1101KcU
+  IaUzrsPgQmgzHnO4wd3TKw7Uh2i8d/leXbMGHY2CxrLVyOFhsA8TtBJ2BlUGFIOx
+  0jMx9f4K8LZaMkk1rX/bs4f/BJh2QUHWDFjRn/RF9rgblkWtBnKqiF+2QSgrrTQt
+  49ZqbiEysUDAGE0+eoCCBi1WcO9bol99JmnstMw8MKhb1qtI4dmq8f1xqTb4CRi9
+  dA9g+VYkjFIfAgMBAAGjgekwgeYwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUlTQb
+  yzd3Dze9BoySCroL6VH0pQ0wgaYGA1UdIwSBnjCBm4AUlTQbyzd3Dze9BoySCroL
+  6VH0pQ2hbaRrMGkxCzAJBgNVBAYTAkhOMSEwHwYDVQQKDBhCYW5jbyBGaW5hbmNp
+  ZXJvIEZpY29oc2ExFTATBgNVBAsMDE9uZUxvZ2luIElkUDEgMB4GA1UEAwwXT25l
+  TG9naW4gQWNjb3VudCAxMDYyODaCFAmvcf23FmxnmGV+dx+aqrzKheN0MA4GA1Ud
+  DwEB/wQEAwIHgDANBgkqhkiG9w0BAQsFAAOCAQEAzswVG62eNGplW6DiOkd7TwVQ
+  iGK52grDrivegqlalXMHKeSOJde4oLySl/90gdMBISvB+U2U7+dspZNCdfm9F6kS
+  6NLm/fzIUBE6no4v6sPJOcAb1c7kWONBrlkgzBqAtVy6jX54vpNeeOUPMUKwM6VJ
+  veXy0BFq5sgkkKYID79C3kQ/ni3RTKCbaVLkF1gXJL+XnPnlQHE0KsSqKXaidyGY
+  PjUQPegUABYZ6GIW5m78DDk47XDTARSej2JwX4S2fnu8LSo85VQk+O7eJQHCFYzk
+  UFpMjmQCdRukX14P1Xh9s1t0Em20HZZMheJJi7X5ic7GIHBloEjsCS72odod8A==</ds:X509Certificate>
+          </ds:X509Data>
+        </ds:KeyInfo>
+      </KeyDescriptor>
+      <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://ficohsa.onelogin.com/trust/saml2/http-redirect/slo/1999154"/>
+      
+        <NameIDFormat>urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress</NameIDFormat>
+      
+      <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://ficohsa.onelogin.com/trust/saml2/http-redirect/sso/63fa79be-43ad-4334-994c-d2aba3cd3f3c"/>
+      <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://ficohsa.onelogin.com/trust/saml2/http-post/sso/63fa79be-43ad-4334-994c-d2aba3cd3f3c"/>
+      <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:SOAP" Location="https://ficohsa.onelogin.com/trust/saml2/soap/sso/63fa79be-43ad-4334-994c-d2aba3cd3f3c"/>
+    </IDPSSODescriptor>
+  </EntityDescriptor>
